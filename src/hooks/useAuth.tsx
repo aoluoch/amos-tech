@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Models } from "appwrite";
+import { ADMIN_ACCESS_DENIED_MESSAGE, isAuthorizedAdmin } from "../lib/adminAccess";
 import {
   appwriteConfigured,
   getCurrentUser,
@@ -8,6 +9,8 @@ import {
 } from "../lib/appwrite";
 
 const INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000;
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_MS = 5 * 60 * 1000;
 const ACTIVITY_EVENTS: Array<keyof WindowEventMap> = [
   "mousemove",
   "mousedown",
@@ -36,10 +39,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [timedOut, setTimedOut] = useState(false);
   const timeoutRef = useRef<number | null>(null);
   const userRef = useRef(user);
+  const failedAttemptsRef = useRef(0);
+  const lockUntilRef = useRef(0);
 
   useEffect(() => {
     userRef.current = user;
   }, [user]);
+
+  async function rejectUnauthorizedSession() {
+    try {
+      await logoutCurrentSession();
+    } catch {
+      // Ignore logout failures when clearing unauthorized sessions.
+    } finally {
+      setUser(null);
+    }
+  }
 
   async function refresh() {
     if (!appwriteConfigured) {
@@ -49,6 +64,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const nextUser = await getCurrentUser();
+    if (nextUser && !isAuthorizedAdmin(nextUser)) {
+      await rejectUnauthorizedSession();
+      setLoading(false);
+      return;
+    }
+
     setUser(nextUser);
     setLoading(false);
   }
@@ -59,9 +80,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(email: string, password: string) {
     setTimedOut(false);
-    await loginWithEmailPassword(email.trim(), password);
-    const nextUser = await getCurrentUser();
-    setUser(nextUser);
+
+    const now = Date.now();
+    if (now < lockUntilRef.current) {
+      const minutes = Math.ceil((lockUntilRef.current - now) / 60000);
+      throw new Error(`Too many failed attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`);
+    }
+
+    try {
+      await loginWithEmailPassword(email.trim(), password);
+      const nextUser = await getCurrentUser();
+
+      if (!isAuthorizedAdmin(nextUser)) {
+        await rejectUnauthorizedSession();
+        failedAttemptsRef.current += 1;
+        if (failedAttemptsRef.current >= MAX_FAILED_ATTEMPTS) {
+          lockUntilRef.current = Date.now() + LOCKOUT_MS;
+          failedAttemptsRef.current = 0;
+        }
+        throw new Error(ADMIN_ACCESS_DENIED_MESSAGE);
+      }
+
+      failedAttemptsRef.current = 0;
+      lockUntilRef.current = 0;
+      setUser(nextUser);
+    } catch (error) {
+      if (error instanceof Error && error.message === ADMIN_ACCESS_DENIED_MESSAGE) {
+        throw error;
+      }
+
+      failedAttemptsRef.current += 1;
+      if (failedAttemptsRef.current >= MAX_FAILED_ATTEMPTS) {
+        lockUntilRef.current = Date.now() + LOCKOUT_MS;
+        failedAttemptsRef.current = 0;
+        throw new Error("Too many failed attempts. Try again in 5 minutes.");
+      }
+
+      throw new Error(ADMIN_ACCESS_DENIED_MESSAGE);
+    }
   }
 
   async function logout() {

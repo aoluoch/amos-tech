@@ -66,7 +66,10 @@ npm run preview
 
 - Route: `/admin` (not linked in the public navbar/footer)
 - Auth: Appwrite email/password
-- Inactivity: signed-out automatically after **3 minutes** without mouse, keyboard, scroll, or touch activity
+- Authorization: user must be in `VITE_ADMIN_ALLOWED_EMAILS` **and** have the Appwrite `admin` label
+- Project user limit is set to `1` to block additional public signups
+- Failed logins use a generic error and temporary lockout after repeated attempts
+- Inactivity: signed-out automatically after **3 minutes** without activity
 - Use **Pages** to edit managed site content
 - Use **Messages** to review Contact and Quote submissions
 
