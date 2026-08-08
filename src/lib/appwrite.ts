@@ -141,6 +141,22 @@ export async function logoutCurrentSession() {
   return account.deleteSession("current");
 }
 
+const pageRowIdCache = new Map<string, string>();
+
+async function resolvePageRowId(key: string) {
+  const cached = pageRowIdCache.get(key);
+  if (cached) return cached;
+
+  const response = await tablesDB.listRows({
+    databaseId: appwriteDatabaseId!,
+    tableId: appwritePagesTableId!,
+    queries: [Query.equal("key", key), Query.limit(1)]
+  });
+  const rowId = response.rows[0]?.$id;
+  if (rowId) pageRowIdCache.set(key, rowId);
+  return rowId;
+}
+
 export async function getManagedPage(key: string): Promise<ManagedPage> {
   if (!appwriteConfigured) {
     return emptyManagedPage(key);
@@ -153,6 +169,7 @@ export async function getManagedPage(key: string): Promise<ManagedPage> {
       queries: [Query.equal("key", key), Query.limit(1)]
     });
     const row = response.rows[0] as PageRow | undefined;
+    if (row?.$id) pageRowIdCache.set(key, row.$id);
     return row ? normalizeManagedPage(key, fromRow(row)) : emptyManagedPage(key);
   } catch {
     return emptyManagedPage(key);
@@ -164,43 +181,42 @@ export async function saveManagedPage(page: ManagedPage) {
     throw new Error("Appwrite is not configured. Managed pages can only be saved to Appwrite.");
   }
 
-  const existing = await tablesDB.listRows({
-    databaseId: appwriteDatabaseId!,
-    tableId: appwritePagesTableId!,
-    queries: [Query.equal("key", page.key), Query.limit(1)]
-  });
-  const row = existing.rows[0] as PageRow | undefined;
   const payload = toRow(page);
+  const existingId = await resolvePageRowId(page.key);
 
-  if (row) {
+  if (existingId) {
     await tablesDB.updateRow({
       databaseId: appwriteDatabaseId!,
       tableId: appwritePagesTableId!,
-      rowId: row.$id,
+      rowId: existingId,
       data: payload
     });
-    return page;
+    return { ...page, updatedAt: payload.updatedAt };
   }
 
-  await tablesDB.createRow({
+  const created = await tablesDB.createRow({
     databaseId: appwriteDatabaseId!,
     tableId: appwritePagesTableId!,
     rowId: ID.unique(),
     data: payload
   });
-  return page;
+  pageRowIdCache.set(page.key, created.$id);
+  return { ...page, updatedAt: payload.updatedAt };
 }
 
 export function subscribeToManagedPages(onUpdate: (page: ManagedPage) => void) {
-  if (!appwriteConfigured) {
+  if (!appwriteConfigured || !appwriteDatabaseId || !appwritePagesTableId) {
     return () => undefined;
   }
 
-  const channel = Channel.tablesdb(appwriteDatabaseId!).table(appwritePagesTableId!);
-  const unsubscribe = client.subscribe(channel, (message) => {
+  const rowsChannel = Channel.tablesdb(appwriteDatabaseId).table(appwritePagesTableId).row();
+  const channels = [rowsChannel, rowsChannel.create(), rowsChannel.update(), rowsChannel.upsert()];
+
+  const unsubscribe = client.subscribe(channels, (message) => {
     const payload = message.payload as PageRow;
     const remote = fromRow(payload);
     if (!remote.key) return;
+    if (payload.$id) pageRowIdCache.set(remote.key, payload.$id);
     onUpdate(normalizeManagedPage(remote.key, remote));
   });
 

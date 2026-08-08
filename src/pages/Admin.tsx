@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState, type ReactNode } from "react";
+import { FormEvent, useEffect, useRef, useState, type ReactNode } from "react";
 import { Inbox, LockKeyhole, LogOut, Plus, Save, ShieldCheck, Trash2, Wifi } from "lucide-react";
 import { AdminMessages } from "../components/admin/AdminMessages";
 import { Seo } from "../components/ui/Seo";
@@ -45,11 +45,11 @@ function LoginPanel() {
 
     try {
       if (!configured) {
-        throw new Error("Appwrite is not configured. Add the VITE_APPWRITE_* values to your .env file.");
+        throw new Error("Invalid credentials.");
       }
       await login(email, password);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to sign in.";
+      const message = err instanceof Error ? err.message : "Invalid credentials.";
       setError(message);
     } finally {
       setSubmitting(false);
@@ -60,16 +60,13 @@ function LoginPanel() {
     <section className="section">
       <div className="container max-w-xl">
         <div className="mb-8">
-          <p className="eyebrow">Secure admin</p>
-          <h1 className="heading mt-3">Sign in to manage site content</h1>
-          <p className="lede mt-3">
-            Appwrite email/password authentication protects every write. Sessions end after 3 minutes of inactivity. Services, Blog, Projects, and Events stay in Contentful.
-          </p>
+          <p className="eyebrow">Admin</p>
+          <h1 className="heading mt-3">Sign in</h1>
         </div>
-        <form className="card grid gap-5 p-6" onSubmit={onSubmit}>
+        <form className="card grid gap-5 p-6" onSubmit={onSubmit} autoComplete="off">
           {timedOut ? (
             <p className="rounded-md border border-ink bg-teal/40 px-3 py-2 text-sm font-semibold">
-              Your admin session ended after 3 minutes of inactivity. Sign in again to continue.
+              Session expired. Sign in again.
             </p>
           ) : null}
           <label>
@@ -121,25 +118,145 @@ function Field({
   );
 }
 
+const AUTOSAVE_DELAY_MS = 800;
+
 function EditorPanel() {
   const { user, logout } = useAuth();
   const [view, setView] = useState<AdminView>("pages");
   const [selected, setSelected] = useState<ManagedPageKey>("home");
   const [page, setPage] = useState<ManagedPage>(() => emptyManagedPage("home"));
   const [status, setStatus] = useState("Ready");
+  const [saving, setSaving] = useState(false);
+  const pageRef = useRef(page);
+  const selectedRef = useRef(selected);
+  const skipAutosaveRef = useRef(true);
+  const isDirtyRef = useRef(false);
+  const saveGenerationRef = useRef(0);
+  const lastLocalSaveAtRef = useRef<string | null>(null);
 
   useEffect(() => {
-    getManagedPage(selected).then(setPage);
+    pageRef.current = page;
+  }, [page]);
+
+  useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
+
+  useEffect(() => {
+    let cancelled = false;
+    skipAutosaveRef.current = true;
+    isDirtyRef.current = false;
+    lastLocalSaveAtRef.current = null;
+    setStatus("Loading...");
+
+    getManagedPage(selected).then((nextPage) => {
+      if (cancelled) return;
+      skipAutosaveRef.current = true;
+      isDirtyRef.current = false;
+      setPage(nextPage);
+      setStatus("Live · ready");
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [selected]);
 
   useEffect(() => {
     return subscribeToManagedPages((nextPage) => {
-      if (nextPage.key === selected) {
-        setPage(nextPage);
-        setStatus("Realtime update received");
-      }
+      if (nextPage.key !== selectedRef.current) return;
+      if (isDirtyRef.current || saving) return;
+      if (nextPage.updatedAt && nextPage.updatedAt === lastLocalSaveAtRef.current) return;
+      skipAutosaveRef.current = true;
+      setPage(nextPage);
+      setStatus("Realtime synced");
     });
-  }, [selected]);
+  }, [saving]);
+
+  useEffect(() => {
+    if (skipAutosaveRef.current) {
+      skipAutosaveRef.current = false;
+      return;
+    }
+
+    if (page.key !== selected) return;
+
+    isDirtyRef.current = true;
+    setStatus("Unsaved changes...");
+    const generation = ++saveGenerationRef.current;
+
+    const timer = window.setTimeout(async () => {
+      setSaving(true);
+      setStatus("Autosaving...");
+      try {
+        const saved = await saveManagedPage(page);
+        if (generation !== saveGenerationRef.current) return;
+        if (selectedRef.current !== saved.key) return;
+        isDirtyRef.current = false;
+        lastLocalSaveAtRef.current = saved.updatedAt ?? null;
+        pageRef.current = saved;
+        setStatus("Saved · live on site");
+      } catch (err) {
+        if (generation !== saveGenerationRef.current) return;
+        const message = err instanceof Error ? err.message : "Autosave failed";
+        setStatus(message);
+      } finally {
+        if (generation === saveGenerationRef.current) setSaving(false);
+      }
+    }, AUTOSAVE_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [page, selected]);
+
+  useEffect(() => {
+    const onLeave = () => {
+      if (!isDirtyRef.current) return;
+      void saveManagedPage(pageRef.current).catch(() => undefined);
+    };
+    window.addEventListener("beforeunload", onLeave);
+    return () => window.removeEventListener("beforeunload", onLeave);
+  }, []);
+
+  async function flushSave(target = pageRef.current) {
+    const generation = ++saveGenerationRef.current;
+    setSaving(true);
+    setStatus("Saving...");
+    try {
+      const saved = await saveManagedPage(target);
+      if (generation !== saveGenerationRef.current) return;
+      isDirtyRef.current = false;
+      lastLocalSaveAtRef.current = saved.updatedAt ?? null;
+      if (selectedRef.current === saved.key) {
+        skipAutosaveRef.current = true;
+        setPage(saved);
+      }
+      setStatus("Saved · live on site");
+    } catch (err) {
+      if (generation !== saveGenerationRef.current) return;
+      const message = err instanceof Error ? err.message : "Save failed";
+      setStatus(message);
+    } finally {
+      if (generation === saveGenerationRef.current) setSaving(false);
+    }
+  }
+
+  async function selectPage(key: ManagedPageKey) {
+    if (key === selected) return;
+    if (isDirtyRef.current) {
+      await flushSave(pageRef.current);
+    }
+    setSelected(key);
+  }
+
+  async function selectView(next: AdminView) {
+    if (next === view) return;
+    if (view === "pages" && isDirtyRef.current) {
+      await flushSave(pageRef.current);
+    }
+    setView(next);
+  }
 
   function updateSection(index: number, field: keyof ManagedSection, value: string) {
     setPage((current) => ({
@@ -271,21 +388,14 @@ function EditorPanel() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    setStatus("Saving...");
-    try {
-      await saveManagedPage(page);
-      setStatus("Saved to Appwrite");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Save failed";
-      setStatus(message);
-    }
+    await flushSave(page);
   }
 
   function loadSeedIntoEditor() {
     const seed = managedPageSeeds[selected];
     if (!seed) return;
     setPage(seed);
-    setStatus("Seed loaded into editor. Save to push it to Appwrite.");
+    setStatus("Seed loaded · autosave pending");
   }
 
   const showHero = selected !== "site";
@@ -308,7 +418,7 @@ function EditorPanel() {
             <p className="eyebrow">Admin</p>
             <h1 className="heading mt-3">Full site content editor</h1>
             <p className="lede mt-3 max-w-3xl">
-              Manage Appwrite-backed page content and review form submissions. Services, Blog, Projects, and Events remain in Contentful.
+              Changes autosave to Appwrite and sync live across the website through realtime updates.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -325,10 +435,10 @@ function EditorPanel() {
         </div>
 
         <div className="mb-8 flex flex-wrap gap-2">
-          <button className={`btn ${view === "pages" ? "btn-secondary" : ""}`} type="button" onClick={() => setView("pages")}>
+          <button className={`btn ${view === "pages" ? "btn-secondary" : ""}`} type="button" onClick={() => void selectView("pages")}>
             Pages
           </button>
-          <button className={`btn ${view === "messages" ? "btn-secondary" : ""}`} type="button" onClick={() => setView("messages")}>
+          <button className={`btn ${view === "messages" ? "btn-secondary" : ""}`} type="button" onClick={() => void selectView("messages")}>
             <Inbox size={16} /> Messages
           </button>
         </div>
@@ -345,7 +455,9 @@ function EditorPanel() {
                   className={`btn justify-start ${selected === key ? "btn-secondary" : ""}`}
                   type="button"
                   key={key}
-                  onClick={() => setSelected(key)}
+                  onClick={() => {
+                    void selectPage(key);
+                  }}
                 >
                   {pageLabels[key]}
                 </button>
@@ -354,6 +466,7 @@ function EditorPanel() {
             <button className="btn mt-4 w-full justify-start" type="button" onClick={loadSeedIntoEditor}>
               Load seed into editor
             </button>
+            <p className="mt-4 font-mono text-xs uppercase text-steel">{status}</p>
           </aside>
           <form className="card grid gap-8 p-6" onSubmit={onSubmit}>
             {showHero ? (
@@ -760,10 +873,12 @@ function EditorPanel() {
             ) : null}
 
             <div className="flex flex-wrap items-center gap-4">
-              <button className="btn btn-primary" type="submit">
-                <Save size={18} /> Save Page
+              <button className="btn btn-primary" type="submit" disabled={saving}>
+                <Save size={18} /> {saving ? "Saving..." : "Save now"}
               </button>
-              <span className="font-mono text-sm text-steel">{status}</span>
+              <span className="badge gap-2">
+                <Wifi size={14} /> {status}
+              </span>
             </div>
           </form>
         </div>
