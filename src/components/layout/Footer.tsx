@@ -1,10 +1,12 @@
 import { Github, Linkedin, Mail, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
-import { services } from "../../data/fallbackContent";
+import { useContentfulList } from "../../hooks/useContentfulList";
 import { useManagedPage } from "../../hooks/useManagedPage";
+import { contentful } from "../../lib/contentful";
 
 export function Footer() {
   const { page: site } = useManagedPage("site");
+  const { items: services } = useContentfulList(contentful.services);
   const email = site.contactEmail ?? "hello@amostechsolutions.com";
   const phone = site.contactPhone ?? "+254 700 000 000";
   const phoneHref = `tel:${phone.replace(/\s+/g, "")}`;

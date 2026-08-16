@@ -3,7 +3,6 @@ import { CheckCircle2 } from "lucide-react";
 import { FormLabel } from "../components/ui/FormLabel";
 import { PageHero } from "../components/ui/PageHero";
 import { Seo } from "../components/ui/Seo";
-import { services } from "../data/fallbackContent";
 import { useManagedPage } from "../hooks/useManagedPage";
 import { useContentfulList } from "../hooks/useContentfulList";
 import { contentful } from "../lib/contentful";
@@ -11,7 +10,7 @@ import { submitQuoteRequest } from "../lib/forms";
 
 export function RequestQuote() {
   const { page } = useManagedPage("quote");
-  const serviceItems = useContentfulList(contentful.services, services);
+  const { items: serviceItems } = useContentfulList(contentful.services);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);

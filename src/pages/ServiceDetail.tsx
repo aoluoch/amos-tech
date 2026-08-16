@@ -1,17 +1,28 @@
 import { CheckCircle2 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { CTASection, SectionHeader } from "../components/ui/Cards";
+import { ContentLoading, CTASection, SectionHeader } from "../components/ui/Cards";
 import { PageHero } from "../components/ui/PageHero";
 import { Seo } from "../components/ui/Seo";
-import { services, projects } from "../data/fallbackContent";
 import { useContentfulList } from "../hooks/useContentfulList";
 import { contentful } from "../lib/contentful";
 import { NotFound } from "./NotFound";
 
 export function ServiceDetail() {
   const { slug } = useParams();
-  const items = useContentfulList(contentful.services, services);
-  const service = items.find((item) => item.slug === slug) ?? services.find((item) => item.slug === slug);
+  const { items, loading } = useContentfulList(contentful.services);
+  const { items: projects } = useContentfulList(contentful.projects);
+  const service = items.find((item) => item.slug === slug);
+
+  if (loading) {
+    return (
+      <section className="section">
+        <div className="container">
+          <ContentLoading />
+        </div>
+      </section>
+    );
+  }
+
   if (!service) return <NotFound />;
 
   return (

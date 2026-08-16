@@ -3,6 +3,10 @@ import { Link } from "react-router-dom";
 import type { ManagedCta } from "../../types/content";
 import { useManagedPage } from "../../hooks/useManagedPage";
 
+export function ContentLoading() {
+  return <p className="font-mono text-sm text-steel">Loading content...</p>;
+}
+
 export function SectionHeader({ eyebrow, title, description }: { eyebrow: string; title: string; description?: string }) {
   return (
     <div className="mb-10 max-w-3xl">

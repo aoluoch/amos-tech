@@ -3,17 +3,16 @@ import { CheckCircle2, Cpu, ShieldCheck, Sparkles } from "lucide-react";
 import { LinkCard, CTASection, SectionHeader } from "../components/ui/Cards";
 import { PageHero } from "../components/ui/PageHero";
 import { Seo } from "../components/ui/Seo";
-import { blogPosts, events, projects, services } from "../data/fallbackContent";
 import { contentful } from "../lib/contentful";
 import { useContentfulList } from "../hooks/useContentfulList";
 import { useManagedPage } from "../hooks/useManagedPage";
 
 export function Home() {
   const { page } = useManagedPage("home");
-  const serviceItems = useContentfulList(contentful.services, services);
-  const projectItems = useContentfulList(contentful.projects, projects);
-  const postItems = useContentfulList(contentful.blogPosts, blogPosts);
-  const eventItems = useContentfulList(contentful.events, events);
+  const { items: serviceItems } = useContentfulList(contentful.services);
+  const { items: projectItems } = useContentfulList(contentful.projects);
+  const { items: postItems } = useContentfulList(contentful.blogPosts);
+  const { items: eventItems } = useContentfulList(contentful.events);
   const engineering = page.listSections?.[0];
 
   return (

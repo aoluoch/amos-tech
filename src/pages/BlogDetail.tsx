@@ -1,15 +1,25 @@
 import { Link, useParams } from "react-router-dom";
-import { CTASection } from "../components/ui/Cards";
+import { ContentLoading, CTASection } from "../components/ui/Cards";
 import { Seo } from "../components/ui/Seo";
-import { blogPosts } from "../data/fallbackContent";
 import { useContentfulList } from "../hooks/useContentfulList";
 import { contentful } from "../lib/contentful";
 import { NotFound } from "./NotFound";
 
 export function BlogDetail() {
   const { slug } = useParams();
-  const posts = useContentfulList(contentful.blogPosts, blogPosts);
-  const post = posts.find((item) => item.slug === slug) ?? blogPosts.find((item) => item.slug === slug);
+  const { items: posts, loading } = useContentfulList(contentful.blogPosts);
+
+  if (loading) {
+    return (
+      <section className="section">
+        <div className="container">
+          <ContentLoading />
+        </div>
+      </section>
+    );
+  }
+
+  const post = posts.find((item) => item.slug === slug);
   if (!post) return <NotFound />;
   const related = posts.filter((item) => item.slug !== post.slug && item.category === post.category).slice(0, 2);
 

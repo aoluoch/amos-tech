@@ -43,7 +43,7 @@ Required Appwrite values:
 - `VITE_APPWRITE_CONTACT_TABLE_ID`
 - `VITE_APPWRITE_QUOTE_TABLE_ID`
 
-Optional Contentful values (falls back to local sample content when empty):
+Required Contentful values (Services, Blog, Projects, and Events have no local fallback after publish):
 
 - `VITE_CONTENTFUL_SPACE_ID`
 - `VITE_CONTENTFUL_DELIVERY_TOKEN`
@@ -87,7 +87,7 @@ npm run preview
 ```text
 src/
   components/   UI, layout, admin inbox
-  data/         Contentful fallbacks + Appwrite page seeds
+  data/         Appwrite page seeds
   hooks/        Auth and content hooks
   lib/          Appwrite + Contentful clients
   pages/        Public pages + Admin

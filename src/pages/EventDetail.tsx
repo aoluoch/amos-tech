@@ -1,17 +1,27 @@
 import { Calendar, MapPin } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { CTASection } from "../components/ui/Cards";
+import { ContentLoading, CTASection } from "../components/ui/Cards";
 import { PageHero } from "../components/ui/PageHero";
 import { Seo } from "../components/ui/Seo";
-import { events } from "../data/fallbackContent";
 import { useContentfulList } from "../hooks/useContentfulList";
 import { contentful } from "../lib/contentful";
 import { NotFound } from "./NotFound";
 
 export function EventDetail() {
   const { slug } = useParams();
-  const items = useContentfulList(contentful.events, events);
-  const event = items.find((item) => item.slug === slug) ?? events.find((item) => item.slug === slug);
+  const { items, loading } = useContentfulList(contentful.events);
+
+  if (loading) {
+    return (
+      <section className="section">
+        <div className="container">
+          <ContentLoading />
+        </div>
+      </section>
+    );
+  }
+
+  const event = items.find((item) => item.slug === slug);
   if (!event) return <NotFound />;
 
   return (

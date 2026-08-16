@@ -1,16 +1,26 @@
 import { Link, useParams } from "react-router-dom";
-import { CTASection, SectionHeader } from "../components/ui/Cards";
+import { ContentLoading, CTASection, SectionHeader } from "../components/ui/Cards";
 import { PageHero } from "../components/ui/PageHero";
 import { Seo } from "../components/ui/Seo";
-import { projects } from "../data/fallbackContent";
 import { useContentfulList } from "../hooks/useContentfulList";
 import { contentful } from "../lib/contentful";
 import { NotFound } from "./NotFound";
 
 export function ProjectDetail() {
   const { slug } = useParams();
-  const items = useContentfulList(contentful.projects, projects);
-  const project = items.find((item) => item.slug === slug) ?? projects.find((item) => item.slug === slug);
+  const { items, loading } = useContentfulList(contentful.projects);
+
+  if (loading) {
+    return (
+      <section className="section">
+        <div className="container">
+          <ContentLoading />
+        </div>
+      </section>
+    );
+  }
+
+  const project = items.find((item) => item.slug === slug);
   if (!project) return <NotFound />;
   const related = items.filter((item) => item.slug !== project.slug).slice(0, 2);
 
