@@ -68,13 +68,14 @@ function mapProject(fields: Project): Project {
   };
 }
 
-async function fetchEntries<T>(contentType: ContentType): Promise<T[]> {
+async function fetchEntries<T>(contentType: ContentType, order?: string): Promise<T[]> {
   if (!space || !token) return [];
 
   const url = new URL(`https://cdn.contentful.com/spaces/${space}/environments/${environment}/entries`);
   url.searchParams.set("access_token", token);
   url.searchParams.set("content_type", contentType);
   url.searchParams.set("limit", "100");
+  if (order) url.searchParams.set("order", order);
 
   try {
     const response = await fetch(url);
@@ -88,7 +89,7 @@ async function fetchEntries<T>(contentType: ContentType): Promise<T[]> {
 
 export const contentful = {
   services: async () => (await fetchEntries<ContentfulService>("service")).map(mapService),
-  blogPosts: async () => (await fetchEntries<BlogPost>("blogPost")).map(mapBlogPost),
+  blogPosts: async () => (await fetchEntries<BlogPost>("blogPost", "-fields.publishedAt")).map(mapBlogPost),
   events: async () => (await fetchEntries<Event>("event")).map(mapEvent),
   projects: async () => (await fetchEntries<Project>("project")).map(mapProject)
 };

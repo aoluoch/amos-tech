@@ -12,8 +12,8 @@ export function Projects() {
   const filtered = useMemo(() => items.filter((project) => category === "All" || project.category === category), [category, items]);
   return (
     <>
-      <Seo title="Projects" description="Selected project examples and digital system concepts by Amos Tech Solutions." />
-      <PageHero eyebrow="Projects" title="Work examples for software, web, automation, and digital systems." description="A showcase of realistic project patterns and demo concepts that can be adapted for client needs." variant="projects" />
+      <Seo title="Projects" description="Websites, apps, and digital systems Amos Tech Solutions has built and launched for clients." />
+      <PageHero eyebrow="Projects" title="Live work for ministries, marketplaces, and community organisations." description="Selected websites and software shipped for clients — from church platforms and e-commerce to a Kenyan car marketplace." variant="projects" />
       <section className="section">
         <div className="container">
           <SectionHeader eyebrow="Selected work" title="Project library" />

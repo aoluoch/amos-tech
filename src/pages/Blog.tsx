@@ -40,6 +40,11 @@ export function Blog() {
                   <LinkCard key={post.slug} to={`/blog/${post.slug}`} title={post.title} description={post.excerpt} image={post.image} meta={`${post.category} • ${post.readingTime}`} />
                 ))}
               </div>
+              {filtered.length === 0 ? (
+                <p className="mt-4 font-mono text-sm text-steel">
+                  {posts.length === 0 ? "No articles are published yet." : "No articles match this search."}
+                </p>
+              ) : null}
             </>
           )}
         </div>

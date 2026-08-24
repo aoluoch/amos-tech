@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { ContentLoading, CTASection } from "../components/ui/Cards";
+import { PageHero } from "../components/ui/PageHero";
 import { Seo } from "../components/ui/Seo";
 import { useContentfulList } from "../hooks/useContentfulList";
 import { contentful } from "../lib/contentful";
@@ -27,15 +28,23 @@ export function BlogDetail() {
     <>
       <Seo title={post.title} description={post.excerpt} />
       <article>
-        <section className="section border-b border-ink">
-          <div className="container max-w-4xl">
-            <Link to="/blog" className="badge">Blog</Link>
-            <p className="eyebrow mt-6">{post.category}</p>
-            <h1 className="display mt-4 text-brand">{post.title}</h1>
-            <p className="lede mt-5">{post.excerpt}</p>
-            <p className="mt-5 font-mono text-sm text-steel">{post.author} • {post.publishedAt} • {post.readingTime}</p>
-          </div>
-        </section>
+        <PageHero
+          eyebrow={post.category}
+          title={post.title}
+          description={post.excerpt}
+          cta={false}
+          variant="post"
+          actions={
+            <>
+              <Link to="/blog" className="badge">
+                Blog
+              </Link>
+              <p className="font-mono text-sm text-steel">
+                {post.author} • {post.publishedAt} • {post.readingTime}
+              </p>
+            </>
+          }
+        />
         <div className="section">
           <div className="container max-w-4xl">
             <img src={post.image} alt="" className="card mb-10 aspect-video w-full object-cover" />

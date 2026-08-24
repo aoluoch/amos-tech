@@ -7,6 +7,18 @@
   color: #061826;
   background: #fafafa;
   font-family: Poppins, Inter, ui-sans-serif, system-ui, sans-serif;
+
+  /* Hero sizing tokens — shared by every page hero so all heroes render at the same size */
+  --hero-eyebrow-height: 1.25rem;
+  --hero-title-size: clamp(1.95rem, 4.2vw, 3.05rem);
+  --hero-title-leading: 1.1;
+  --hero-title-lines: 3;
+  --hero-copy-size: clamp(1rem, 1.4vw, 1.05rem);
+  --hero-copy-leading: 1.7;
+  --hero-copy-lines: 3;
+  --hero-actions-height: 48px;
+  --hero-visual-height: 380px;
+  --hero-chip-height: 40px;
 }
 
 * {
@@ -83,6 +95,73 @@ img {
   color: #5f7180;
   font-size: clamp(1rem, 2vw, 1.18rem);
   line-height: 1.7;
+}
+
+.hero-eyebrow {
+  min-height: var(--hero-eyebrow-height);
+}
+
+.hero-title {
+  font-size: var(--hero-title-size);
+  font-weight: 800;
+  line-height: var(--hero-title-leading);
+  letter-spacing: -0.01em;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+}
+
+.hero-copy {
+  color: #5f7180;
+  font-size: var(--hero-copy-size);
+  line-height: var(--hero-copy-leading);
+  overflow-wrap: break-word;
+}
+
+.hero-actions {
+  align-content: center;
+  min-height: var(--hero-actions-height);
+}
+
+.hero-visual {
+  height: var(--hero-visual-height);
+}
+
+.hero-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--hero-chip-height);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Reserve identical title and copy blocks once there is room for the full hero layout */
+@media (min-width: 768px) {
+  .hero-eyebrow {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .hero-title,
+  .hero-copy {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .hero-title {
+    -webkit-line-clamp: var(--hero-title-lines);
+    line-clamp: var(--hero-title-lines);
+    height: calc(var(--hero-title-leading) * var(--hero-title-lines) * 1em + 0.14em);
+  }
+
+  .hero-copy {
+    -webkit-line-clamp: var(--hero-copy-lines);
+    line-clamp: var(--hero-copy-lines);
+    height: calc(var(--hero-copy-leading) * var(--hero-copy-lines) * 1em + 0.14em);
+  }
 }
 
 .card {
@@ -189,6 +268,10 @@ img {
 }
 
 @media (max-width: 760px) {
+  :root {
+    --hero-visual-height: 320px;
+  }
+
   .section {
     padding: 64px 16px;
   }

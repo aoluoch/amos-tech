@@ -72,6 +72,12 @@ export function RequestQuote() {
         description={page.description}
         cta={false}
         variant="quote"
+        actions={
+          <>
+            <span className="badge">No fixed packages</span>
+            <span className="badge">Response within 1 business day</span>
+          </>
+        }
       />
       <section className="section">
         <div className="container grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">

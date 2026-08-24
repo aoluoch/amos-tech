@@ -30,7 +30,14 @@ export function ProjectDetail() {
       <PageHero eyebrow={project.category} title={project.title} description={project.description} variant="project" />
       <section className="section">
         <div className="container">
-          <img src={project.image} alt="" className="card mb-10 aspect-video w-full object-cover" />
+          <div className="mb-10">
+            <img src={project.image} alt={project.title} className="card aspect-video w-full object-cover" />
+            {project.liveUrl ? (
+              <a className="btn btn-primary mt-6" href={project.liveUrl} target="_blank" rel="noreferrer">
+                Visit live site
+              </a>
+            ) : null}
+          </div>
           <div className="grid gap-6 lg:grid-cols-3">
             <Info title="Challenge" body={project.challenge} />
             <Info title="Solution" body={project.solution} />
@@ -48,7 +55,7 @@ export function ProjectDetail() {
             <div className="grid gap-3">{project.features.map((feature) => <p className="card p-4" key={feature}>{feature}</p>)}</div>
           </div>
           <div>
-            <SectionHeader eyebrow="Outcomes" title="Example outcomes" />
+            <SectionHeader eyebrow="Outcomes" title="What this delivered" />
             <div className="grid gap-3">{project.results.map((result) => <p className="card p-4" key={result}>{result}</p>)}</div>
           </div>
         </div>
@@ -56,7 +63,7 @@ export function ProjectDetail() {
       <section className="section border-t border-ink">
         <div className="container">
           <SectionHeader eyebrow="Gallery" title="System visuals" />
-          <div className="grid gap-6 md:grid-cols-2">{project.gallery.map((image) => <img src={image} alt="" className="card aspect-video w-full object-cover" key={image} loading="lazy" />)}</div>
+          <div className="grid gap-6 md:grid-cols-2">{project.gallery.map((image) => <img src={image} alt={`${project.title} screenshot`} className="card aspect-video w-full object-cover" key={image} loading="lazy" />)}</div>
         </div>
       </section>
       {related.length > 0 && (
